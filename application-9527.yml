@@ -1,0 +1,55 @@
+# \u5E94\u7528\u540D\u79F0
+spring:
+  application:
+    name: getway9527
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/springcloud?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC
+    username: root
+    password: 123456
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true #开启动态路由，根据服务注册中心的服务名访问，实现负载均衡
+      routes: #可以配置多个路由，但ID不能相同
+        - id: payment_route #路由ID，不能和其他路由相同
+          uri: lb://PAYMENT #访问路径，开启动态路由后直接填lb://服务名，否则填http://XXX(写死)
+          filters: #过滤器，先执行断言再执行过滤器
+            # 通常这个地方也可以用自定义过滤器，参见filter包
+            - AddRequestParameter=X-Request-Id,1024 #为请求添加响应头，KEY为X-Request-Id，值为1024
+          predicates: #配置动态路由断言，True跳转到Uri,False直接返回404(类似与Nginx反代)
+            - Path=/payment/get/**  #访问路径
+            - Header=X-Request-Id, \d+ #响应头 \d+（正整数）是正则表达式，判断响应头里的值
+            - Before=2022-04-09T23:59:59.370+08:00[Asia/Shanghai] #请求时间必须在这个时间之前，这里时间必须是这个格式
+        - id: payment_route2
+          uri: lb://PAYMENT
+          predicates:
+            - Path=/payment/lb/**
+        - id: payment_route3
+          uri: lb://PAYMENT
+          predicates:
+            - Path=/payment/timeOut/**
+        - id: payment_route4
+          uri: lb://PAYMENT
+          predicates:
+            - Path=/payment/info/**
+        - id: payment_route5
+          uri: lb://PAYMENT
+          predicates:
+            - Path=/payment/getServices
+            - After=2022-04-08T23:59:59.370+08:00[Asia/Shanghai]
+server:
+  port: 9527
+eureka:
+  instance:
+    hostname: getway9527
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://www.eureka7002.com:7002/eureka/,http://www.eureka7001.com:7001/eureka/
+
+
+
